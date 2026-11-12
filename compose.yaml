@@ -1,0 +1,81 @@
+name: tail-hosted-opengist
+
+
+services:
+
+  tailscale:
+    image: tailscale/tailscale:stable
+    hostname: gist
+    restart: unless-stopped
+    # Debug: Uncomment to publish Opengist on http://localhost:${OG_HTTP_PORT}
+    # ports:
+    #   - "127.0.0.1:${OG_HTTP_PORT}:${OG_HTTP_PORT}"
+    environment:
+      - TS_AUTHKEY=file:///run/secrets/tailscale_authkey
+      - TS_AUTH_ONCE=true
+      # https://tailscale.com/docs/features/logging#opt-out-of-client-logging
+      - TS_NO_LOGS_NO_SUPPORT=true
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_OUTBOUND_HTTP_PROXY_LISTEN=127.0.0.1:1056
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    secrets:
+      - tailscale_authkey
+
+  opengist:
+    image: ghcr.io/thomiceli/opengist:1
+    restart: unless-stopped
+    depends_on:
+      - tailscale
+    network_mode: "service:tailscale"
+    environment:
+      - OG_EXTERNAL_URL=${OG_EXTERNAL_URL}
+      - OG_HTTP_PORT=${OG_HTTP_PORT}
+      - OG_SSH_PORT=${OG_SSH_PORT}
+      - OG_SECRET_KEY=${OG_SECRET_KEY}
+      - OG_GITEA_URL=${OG_GITEA_URL}
+      - OG_CUSTOM_STATIC_LINK_0_NAME=Gitea@MyMachine
+      - OG_CUSTOM_STATIC_LINK_0_PATH=${OG_GITEA_URL}
+      - HTTPS_PROXY=http://127.0.0.1:1056
+      - NO_PROXY=localhost,127.0.0.1
+    volumes:
+      - ${PWD}/config.yml:/config.yml:ro
+      - opengist-data:/opengist
+    secrets:
+      - opengist_secrets
+    user: "1000:1000"
+
+
+volumes:
+
+  tailscale-state:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/tailscale-state
+
+  opengist-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data
+
+
+secrets:
+
+  tailscale_authkey:
+    file: ./secrets/tailscale_authkey
+
+  # Name must be "opengist_secrets", it is hardoced in [entrypoint.sh](https://github.com/thomiceli/opengist/blob/master/docker/entrypoint.sh#L6)
+  opengist_secrets:
+    file: ./secrets/opengist_secrets.env
+
+
+networks:
+
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1360

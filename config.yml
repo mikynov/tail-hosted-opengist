@@ -1,0 +1,44 @@
+# Learn more about Opengist configuration here:
+# https://github.com/thomiceli/opengist/blob/master/docs/configuration/configure.md
+# https://github.com/thomiceli/opengist/blob/master/docs/configuration/cheat-sheet.md
+
+# Set the log level to one of the following: debug, info, warn, error, fatal. Default: warn
+log-level: info
+
+# Directory where Opengist will store its data. Default: ~/.opengist/
+opengist-home: /opengist
+
+# Set the default search fields. Can contain multiple fields (e.g., `content,username`).
+# Fields: content,user,title,description,filename,extension,language,topic. Default: content
+search.default: title,description,content
+
+# Default branch name used by Opengist when initializing Git repositories.
+# If not set, uses the Git default branch name. See https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup#_new_default_branch
+git.default-branch: master
+
+# HTTP server configuration
+# Host to bind to. Default: 0.0.0.0
+# Use an IP address for network binding. Use a path for Unix socket binding (e.g. /run/opengist.sock)
+http.host: 127.0.0.1
+
+# SSH built-in server configuration
+# Host to bind to. Default: 0.0.0.0
+# This is for builtin SSH server only.
+ssh.host: 127.0.0.1
+
+# Username shown in SSH clone URLs (e.g. `gist` → `gist@host:user/repo.git`).
+# For `host` mode set it to the OS account clients log in as. If empty, URLs carry no username.
+ssh.username: git
+
+# OAuth2 configuration
+# The name of the Gitea instance. It is displayed in the OAuth login button. Default: Gitea
+gitea.name: Gitea@MyMachine
+
+# Instance name
+# Set your own custom name to be displayed instead of 'Opengist'
+custom.name: gist@MyMachine
+
+# Custom assets
+# Add your own custom assets, that are files relatives to $opengist-home/custom/
+custom.logo: opengist.svg
+custom.favicon: favicon.png

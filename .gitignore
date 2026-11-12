@@ -1,0 +1,6 @@
+/tailscale-state/
+/config/
+/data/*
+!/data/custom/
+/secrets/
+.env*

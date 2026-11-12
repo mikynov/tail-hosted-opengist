@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+[[ "${BASH_VERSINFO[0]}" -lt 4 ]] && echo "Requires Bash >= 4" >&2 && exit 44
+
+[[ -v __SOURCE_GUARD ]] && return 0
+readonly __SOURCE_GUARD=1
+
+readonly TRACE="${TRACE:-}"
+[[ -n "${TRACE}" ]] && set -o xtrace
+set -o errexit
+set -o errtrace
+set -o nounset
+set -o pipefail
+set -o noclobber # redir will not overwrite existing files - use '>|'
+IFS=$' \t\n'
+
+# https://mywiki.wooledge.org/BashFAQ/028
+if [[ ${BASH_SOURCE[0]} = */* ]]; then
+    SCRIPT_DIR="${BASH_SOURCE%/*}"
+else
+    SCRIPT_DIR="."
+fi
+# shellcheck disable=SC2034
+readonly SCRIPT_DIR
+
+# shellcheck source=./runner.sh
+source "${SCRIPT_DIR}/runner.sh"
+
+# shellcheck source=./.env
+if [[ ! -f "${SCRIPT_DIR}/.env" ]]; then
+    runner_log_warning "No .env found - creating an empty ${SCRIPT_DIR}/.env"
+    touch "${SCRIPT_DIR}/.env"
+fi
+source "${SCRIPT_DIR}/.env"
+
+task_config() { # Render effective Compose config
+    runner_run docker compose config
+}
+
+task_generate_secrets() { # Generate OG_SECRET_KEY and add it to .env
+    local env_file="${SCRIPT_DIR}/.env"
+
+    if grep --quiet --extended-regexp '^OG_SECRET_KEY=' "${env_file}" 2>/dev/null; then
+        runner_log_error "OG_SECRET_KEY already set in ${env_file}"
+        return 1
+    fi
+
+    local key
+    key="$(LC_ALL=C tr --delete --complement 'A-Za-z0-9' < /dev/urandom | head --bytes=64)"
+
+    runner_log_notice "OG_SECRET_KEY"
+    printf 'OG_SECRET_KEY=%s\n' "${key}" >> "${env_file}"
+}
+
+task_up() { # Start containers
+    runner_run mkdir --parents data
+
+    # https://github.com/tailscale/tailscale/issues/4833#issuecomment-1491119909
+    local mtu
+    mtu=$(cat /sys/class/net/eth0/mtu)
+    if (( mtu < 1360 )); then
+        runner_log_warning "MTU is ${mtu}, expected >= 1360"
+        runner_log "Increase MTU to 1360 (or higher) to avoid issues with Tailscale with:"
+        runner_log "$ sudo ip link set dev eth0 mtu 1360"
+        return 1
+    fi
+
+    runner_run docker compose up --detach
+}
+
+task_down() { # Stop containers
+    runner_run docker compose down
+}
+
+task_serve() { # Expose HTTPS and SSH via Tailscale Serve
+    runner_run docker compose exec tailscale tailscale serve --bg --https=443 http://127.0.0.1:${OG_HTTP_PORT}
+    runner_run docker compose exec tailscale tailscale serve --bg --tcp=${OG_SSH_PORT} tcp://127.0.0.1:${OG_SSH_PORT}
+}
+
+task_serve_off() { # Stop serving
+    runner_run docker compose exec tailscale tailscale serve --https=443 off
+    runner_run docker compose exec tailscale tailscale serve --tcp=${OG_SSH_PORT} off
+}
+
+task_serve_status() { # Show Tailscale Serve status
+    runner_run docker compose exec tailscale tailscale serve status
+}
+
+task_log() { # Show last 60 log lines (from all containers)
+    runner_run docker compose logs --tail=60
+}
+
+task_default() {
+    local self="${BASH_SOURCE[0]}"
+    echo "Usage: ./${self##*/} <task> [<task>...]"
+    echo
+    echo "Tasks:"
+    grep --only-matching --extended-regexp '^task_[a-zA-Z0-9_]+\(\) \{([[:space:]]+#.*)?' "${self}" \
+        | grep --invert-match --extended-regexp '^task_default\(\)' \
+        | sed --regexp-extended 's/^task_([a-zA-Z0-9_]+)\(\) \{[[:space:]]*#?[[:space:]]?/\1\t/' \
+        | sort \
+        | while IFS=$'\t' read -r name comment; do
+            printf '  %-18s %s\n' "${name}" "${comment}"
+        done
+}
