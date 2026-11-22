@@ -52,7 +52,7 @@ task_generate_secrets() { # Generate OG_SECRET_KEY and add it to .env
 }
 
 task_up() { # Start containers
-    runner_run mkdir --parents data
+    runner_run mkdir --parents tailscale-state data
 
     # https://github.com/tailscale/tailscale/issues/4833#issuecomment-1491119909
     local mtu

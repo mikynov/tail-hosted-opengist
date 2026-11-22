@@ -31,11 +31,13 @@ Login uses OAuth2 against a [tail-hosted-gitea](https://github.com/mikynov/tail-
    This will add `OG_SECRET_KEY` to `.env`
 4. Make sure Gitea is running (`./run up serve` in [tail-hosted-gitea](https://github.com/mikynov/tail-hosted-gitea)) and **log in as admin**
 5. Create OAuth2 application at `https://gitea.{{tailnet}}.ts.net/-/admin/applications`
-   * Set callback to `https://gist.{{tailnet}}.ts.net/oauth/gitea/callback`
-6. Create `secrets/opengist_secrets.env` with the Gitea OAuth2 credentials:
+   * Application Name: **Opengist**
+   * Redirect URI: `https://gist.{{tailnet}}.ts.net/oauth/gitea/callback`
+   * Confidential Client: **true**
+6. Create `secrets/opengist_secrets.env` with the Gitea OAuth2 secrets:
    ```bash
-   OG_GITEA_CLIENT_KEY=<key-from-gitea>
-   OG_GITEA_SECRET=<secret-from-gitea>
+   OG_GITEA_CLIENT_KEY=<Client-ID-from-Gitea>
+   OG_GITEA_SECRET=<Client-Secret-from-Gitea>
    ```
 7. Setup access in Tailscale, see [Access controls](#access-controls)
 8. Start containers and expose via [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve)
@@ -48,6 +50,10 @@ Login uses OAuth2 against a [tail-hosted-gitea](https://github.com/mikynov/tail-
     * Disable login form: **On**
 
     As a result, anyone can register in Gitea and then log in to Opengist through Gitea's OAuth2, but registration and login through Opengist's own forms are disabled.
+
+    For enhanced privacy, consider the following settings:
+    * Require login: **On**
+    * Disable Gravatar: **On**
 
 ## Notes
 
